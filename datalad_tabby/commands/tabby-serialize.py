@@ -55,7 +55,13 @@ class FileInfo:
 class DatasetVersionInfo:
     dataset_version: str
     files: dict[str, FileInfo]      # Associate path with file info
-    sub_datasets: dict[str, 'DatasetVersionInfo']    # Associate path with a dataset version info
+    sub_datasets: dict[str, 'SubdatasetInfo']    # Associate path with a dataset version info
+
+
+@dataclass
+class SubdatasetInfo:
+    dataset_id: str
+    dataset_version: DatasetVersionInfo
 
 
 def add_dataset_info(uuid_str: str, status: dict) -> DatasetInfo:
@@ -84,7 +90,9 @@ def add_dataset_version_info(dataset_element: dict, status: dict) -> DatasetVers
         root_dataset_version_info = add_dataset_version(
             id_str=dataset_element['root_dataset_id'],
             version_str=dataset_element['root_dataset_version'])
-        root_dataset_version_info.sub_datasets[dataset_element['dataset_path']] = dataset_version_info
+        root_dataset_version_info.sub_datasets[dataset_element['dataset_path']] = SubdatasetInfo(
+            dataset_id=dataset_element['root_dataset_id'],
+            dataset_version=dataset_version_info)
 
     return dataset_version_info
 
@@ -107,9 +115,6 @@ def add_file_info(dataset_element: dict, dataset_version: DatasetVersionInfo):
 
 
 def process(dataset_element: dict, status: dict):
-    #print(json.dumps(dataset_element))
-    #return
-    dataset_info = add_dataset_info(dataset_element['dataset_id'], status)
     dataset_version_info = add_dataset_version_info(dataset_element, status)
     if dataset_element['type'] == 'file':
         file_info = add_file_info(dataset_element, dataset_version_info)
