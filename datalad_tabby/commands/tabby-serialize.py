@@ -17,8 +17,8 @@ from datalad_tabby.commands.model import (
 
 
 argument_parser = ArgumentParser(
-    prog='iterate_dataset',
-    description='Iterate over the elements of a dataset',
+    prog='tabby-serialze',
+    description='Serialize a dataset and output tabby-tables',
 )
 
 argument_parser.add_argument(
