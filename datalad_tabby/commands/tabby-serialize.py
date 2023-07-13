@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import json
 from argparse import ArgumentParser
-from dataclasses import (
-    dataclass,
-    asdict,
-)
+from dataclasses import asdict
 from pathlib import Path
 
 from datalad.distribution.dataset import require_dataset
 from datalad_tabby.commands.iter_dataset import iter_dataset
+from datalad_tabby.commands.model import (
+    DatasetInfo,
+    DatasetVersionInfo,
+    FileInfo,
+    SerializationInfo,
+    SubdatasetInfo,
+)
 
 
 argument_parser = ArgumentParser(
@@ -33,45 +37,6 @@ argument_parser.add_argument(
     default='.',
     help='directory to which the output should be written'
 )
-
-
-@dataclass
-class DatasetInfo:
-    dataset_id: str
-    dataset_versions: dict[str, 'DatasetVersionInfo']
-    # common things go here?
-
-
-@dataclass
-class SerializationInfo:
-    start_dataset_id: str
-    start_dataset_version: str
-    dataset_infos: dict[str, DatasetInfo]
-    # common things go here?
-
-
-@dataclass
-class FileInfo:
-    path: str
-    byte_size: int
-    executable: bool
-    url: str
-    annexed: bool
-    annex_key: str | None = None
-    annex_locations: list[str] | None = None
-
-
-@dataclass
-class DatasetVersionInfo:
-    dataset_version: str
-    files: dict[str, FileInfo]      # Associate path with file info
-    sub_datasets: dict[str, 'SubdatasetInfo']    # Associate path with a dataset version info
-
-
-@dataclass
-class SubdatasetInfo:
-    dataset_id: str
-    dataset_version: DatasetVersionInfo
 
 
 def add_dataset_info(uuid_str: str, status: dict) -> DatasetInfo:
@@ -102,7 +67,7 @@ def add_dataset_version_info(dataset_element: dict, status: dict) -> DatasetVers
             version_str=dataset_element['root_dataset_version'])
         root_dataset_version_info.sub_datasets[dataset_element['dataset_path']] = SubdatasetInfo(
             dataset_id=dataset_element['root_dataset_id'],
-            dataset_version=dataset_version_info)
+            dataset_version=dataset_version_info.dataset_version)
 
     return dataset_version_info
 
@@ -128,7 +93,7 @@ def add_file_info(dataset_element: dict, dataset_version: DatasetVersionInfo):
 def process(dataset_element: dict, serialization: SerializationInfo):
     dataset_version_info = add_dataset_version_info(dataset_element, serialization.dataset_infos)
     if dataset_element['type'] == 'file':
-        file_info = add_file_info(dataset_element, dataset_version_info)
+        add_file_info(dataset_element, dataset_version_info)
     elif dataset_element['type'] == 'dataset':
         # The dataset was already added above
         pass
@@ -149,10 +114,21 @@ def output_file_table(version_dir: Path, files: dict[str, FileInfo]):
             f.write('\n')
 
 
+def output_subdataset_table(version_dir: Path, subdatasets: dict[str, SubdatasetInfo]):
+    if not subdatasets:
+        return
+    file_table = version_dir / 'subdatasets.tsv'
+    with file_table.open(mode='wt') as f:
+        f.write('path[POSIX]\tdataset-UUID\tdataset-version\n')
+        for path, subdataset_info in subdatasets.items():
+            f.write(f'{path}\t{subdataset_info.dataset_id}\t{subdataset_info.dataset_version}\n')
+
+
 def output_dataset_version(dataset_dir: Path, version: str, dataset_version_info: DatasetVersionInfo):
     version_dir = dataset_dir / version
     version_dir.mkdir(parents=True, exist_ok=True)
     output_file_table(version_dir, dataset_version_info.files)
+    output_subdataset_table(version_dir, dataset_version_info.sub_datasets)
 
 
 def output_dataset(output_dir: Path, dataset_id: str, dataset_info: DatasetInfo):
