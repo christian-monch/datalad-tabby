@@ -4,3 +4,6 @@ pytest-cov
 coverage
 sphinx
 sphinx_rtd_theme
+
+# This is used to mock the dataset iterator
+datalad-metalad @ git+https://github.com/christian-monch/datalad-metalad.git@test-iterator-2
