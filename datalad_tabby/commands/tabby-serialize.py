@@ -17,7 +17,7 @@ from datalad_tabby.commands.model import (
 
 
 argument_parser = ArgumentParser(
-    prog='tabby-serialze',
+    prog='tabby-serialize',
     description='Serialize a dataset and output tabby-tables',
 )
 
@@ -102,7 +102,7 @@ def process(dataset_element: dict, serialization: SerializationInfo):
 
 
 def output_file_table(version_dir: Path, files: dict[str, FileInfo]):
-    file_table = version_dir / 'file.tsv'
+    file_table = version_dir / 'files.tsv'
     with file_table.open(mode='wt') as f:
         f.write('path[POSIX]\tsize[bytes]\tchecksum[md5]\turl\tannex_key\tlocations\n')
         for path, file_info in files.items():
@@ -114,28 +114,33 @@ def output_file_table(version_dir: Path, files: dict[str, FileInfo]):
             f.write('\n')
 
 
-def output_subdataset_table(version_dir: Path, subdatasets: dict[str, SubdatasetInfo]):
-    if not subdatasets:
-        return
+def output_subdataset_table(version_dir: Path,
+                            dataset_id: str,
+                            dataset_version: str,
+                            subdatasets: dict[str, SubdatasetInfo]):
     file_table = version_dir / 'subdatasets.tsv'
     with file_table.open(mode='wt') as f:
         f.write('path[POSIX]\tdataset-UUID\tdataset-version\n')
+        f.write(f'.\t{dataset_id}\t{dataset_version}\n')
         for path, subdataset_info in subdatasets.items():
             f.write(f'{path}\t{subdataset_info.dataset_id}\t{subdataset_info.dataset_version}\n')
 
 
-def output_dataset_version(dataset_dir: Path, version: str, dataset_version_info: DatasetVersionInfo):
+def output_dataset_version(dataset_dir: Path,
+                           dataset_id: str,
+                           version: str,
+                           dataset_version_info: DatasetVersionInfo):
     version_dir = dataset_dir / version
     version_dir.mkdir(parents=True, exist_ok=True)
     output_file_table(version_dir, dataset_version_info.files)
-    output_subdataset_table(version_dir, dataset_version_info.sub_datasets)
+    output_subdataset_table(version_dir, dataset_id, version, dataset_version_info.sub_datasets)
 
 
 def output_dataset(output_dir: Path, dataset_id: str, dataset_info: DatasetInfo):
     id_dir = output_dir / dataset_id
     id_dir.mkdir(parents=True, exist_ok=True)
     for version, dataset_version_info in dataset_info.dataset_versions.items():
-        output_dataset_version(id_dir, version, dataset_version_info)
+        output_dataset_version(id_dir, dataset_id, version, dataset_version_info)
 
 
 def output(serialization: SerializationInfo, output_dir: str):
